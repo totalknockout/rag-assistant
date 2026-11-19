@@ -11,7 +11,7 @@ dependencies = []
 [dependency-groups]
 dev = [
     "boto3>=1.40",
-    "boto3-stubs[bedrock-runtime,bedrock,lambda,sns]>=1.40",
+    "boto3-stubs[bedrock-runtime,bedrock,lambda,sns]>=1.44.3",
     "mypy>=1.15",
     "pre-commit>=4.0",
     "pytest>=8.3",
