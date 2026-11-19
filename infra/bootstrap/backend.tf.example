@@ -1,0 +1,13 @@
+# After the first apply, move the bootstrap state into the bucket it created:
+#   cp backend.tf.example backend.tf
+#   (edit the bucket name: see `terraform output state_bucket`)
+#   terraform init -migrate-state
+terraform {
+  backend "s3" {
+    bucket       = "rag-assistant-tfstate-123456789012-eu-west-2"
+    key          = "bootstrap/terraform.tfstate"
+    region       = "eu-west-2"
+    encrypt      = true
+    use_lockfile = true
+  }
+}

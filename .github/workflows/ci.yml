@@ -1,0 +1,160 @@
+name: CI
+
+# Every pull request: Python quality gates, Terraform static checks, a security
+# scan, and a read-only `terraform plan` summarised on the PR.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  python:
+    name: Python lint, types, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+      - name: mypy
+        run: uv run mypy
+
+      - name: pytest
+        run: uv run pytest
+
+  terraform-static:
+    name: Terraform fmt, validate, lint, security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "^1.11"
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff infra
+
+      - name: terraform validate
+        run: |
+          for dir in infra/bootstrap infra/envs/dev infra/modules/lambda_function; do
+            echo "::group::validate $dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done
+
+      - uses: terraform-linters/setup-tflint@v4
+
+      - name: tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init --config "$GITHUB_WORKSPACE/.tflint.hcl"
+          tflint --recursive --config "$GITHUB_WORKSPACE/.tflint.hcl" --chdir infra
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Checkov
+        run: uvx checkov --directory infra --framework terraform --compact --quiet --skip-download
+
+  plan:
+    name: Terraform plan (dev)
+    needs: terraform-static
+    # Only for PRs from this repository (never forks), and only once bootstrap
+    # has created the plan role and its ARN is saved as a repository variable.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.AWS_PLAN_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: infra/envs/dev
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-plan-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "^1.11"
+          terraform_wrapper: false
+
+      - name: terraform init
+        run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      - name: terraform plan
+        id: plan
+        # -lock=false: the plan role is read-only and cannot write the lock file.
+        run: |
+          terraform plan -lock=false -input=false -no-color -var-file=dev.tfvars -out=tfplan
+          terraform show -json tfplan > plan.json
+
+      - name: Summarise plan (addresses and actions only, safe for a public repo)
+        run: |
+          {
+            echo "### Terraform plan: dev"
+            echo
+            jq -r '
+              [.resource_changes[] | select(.change.actions != ["no-op"])] as $c
+              | "**\($c | map(select(.change.actions | index("create"))) | length) to add, "
+                + "\($c | map(select(.change.actions == ["update"])) | length) to change, "
+                + "\($c | map(select(.change.actions | index("delete"))) | length) to destroy**"
+            ' plan.json
+            echo
+            echo '```'
+            jq -r '.resource_changes[] | select(.change.actions != ["no-op"])
+                   | "\(.change.actions | join("/") | ascii_upcase)\t\(.address)"' plan.json
+            echo '```'
+          } > summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on the pull request
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- terraform-plan-dev -->';
+            const body = `${marker}\n${fs.readFileSync('infra/envs/dev/summary.md', 'utf8')}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

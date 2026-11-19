@@ -1,0 +1,34 @@
+{
+  // Same toolchain everywhere: GitHub Codespaces (180 core-hours a month on Pro)
+  // or VS Code Dev Containers on your own machine.
+  "name": "rag-assistant",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+  "features": {
+    "ghcr.io/devcontainers/features/terraform:1": {
+      "version": "latest",
+      "tflint": "latest"
+    },
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  },
+  "postCreateCommand": "pipx install uv && make setup",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "hashicorp.terraform",
+        "charliermarsh.ruff",
+        "ms-python.python",
+        "ms-python.mypy-type-checker",
+        "github.vscode-github-actions",
+        "editorconfig.editorconfig"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "AWS_PROFILE": "rag-dev",
+    "AWS_REGION": "eu-west-2"
+  }
+}

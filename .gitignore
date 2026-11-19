@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+plan.json
+summary.md
+crash.log
+crash.*.log
+terraform.tfvars
+backend.hcl
+infra/bootstrap/backend.tf
+.build/
+
+# Node / front end
+node_modules/
+frontend/dist/
+*.local
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Smoke-test output
+response.json

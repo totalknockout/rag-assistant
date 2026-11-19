@@ -1,0 +1,32 @@
+.page {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  color: #545b64;
+}
+
+.lead {
+  font-size: 1.15rem;
+  color: #31373d;
+}
+
+.milestones {
+  list-style: none;
+  padding: 0;
+}
+
+.milestones li {
+  padding: 0.35rem 0;
+  color: #545b64;
+}
+
+.milestones li.done {
+  color: #1d8102;
+  font-weight: 600;
+}

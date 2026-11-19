@@ -1,0 +1,44 @@
+name: Evaluate
+
+# Manual evaluation run. In Phase 0 it only proves the wiring; from Milestone 10
+# it runs the golden set against the deployed dev API and commits a report.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Count datasets only; do not write a report"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked
+
+      - name: Run evaluation
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            uv run python -m eval.runners.run --dry-run
+          else
+            uv run python -m eval.runners.run
+          fi
+
+      - name: Upload report
+        if: ${{ !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval/reports/*.json

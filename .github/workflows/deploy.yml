@@ -1,0 +1,75 @@
+name: Deploy dev
+
+# Applies infra/envs/dev on every merge to main, then runs the smoke test.
+# The job runs in the `dev` GitHub environment: only that environment's jobs
+# can assume the apply role, and (in a public repo) a required reviewer must
+# approve each run.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "services/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  deploy:
+    name: Apply dev and smoke test
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/envs/dev
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-apply-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "^1.11"
+          terraform_wrapper: false
+
+      - name: terraform init
+        run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      - name: terraform plan
+        run: terraform plan -input=false -var-file=dev.tfvars -out=tfplan
+
+      - name: terraform apply
+        run: terraform apply -input=false tfplan
+
+      - name: Smoke test
+        run: |
+          fn="$(terraform output -raw hello_function_name)"
+          aws lambda invoke --function-name "$fn" \
+            --cli-binary-format raw-in-base64-out \
+            --payload '{"action":"all"}' response.json > /dev/null
+          jq . response.json
+          jq -e '.ok == true and .embed.dimensions == 1024' response.json > /dev/null
+          {
+            echo "### Smoke test passed"
+            echo
+            echo "- Model reply: \`$(jq -r '.converse.reply' response.json)\`"
+            echo "- Embedding dimensions: $(jq -r '.embed.dimensions' response.json)"
+          } >> "$GITHUB_STEP_SUMMARY"

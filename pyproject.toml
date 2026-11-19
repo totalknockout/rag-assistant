@@ -1,0 +1,70 @@
+[project]
+name = "rag-assistant"
+version = "0.1.0"
+description = "Enterprise RAG Knowledge Assistant on AWS: serverless, permission-aware question answering over internal documents."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+# Runtime dependencies are packaged per Lambda function. The hello function only
+# needs boto3, which the Lambda Python runtime already provides.
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "boto3>=1.40",
+    "boto3-stubs[bedrock-runtime,bedrock,lambda,sns]>=1.40",
+    "mypy>=1.15",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.12",
+]
+
+[tool.uv]
+package = false
+
+# ---------------------------------------------------------------------------
+# Ruff: linting and formatting
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["frontend", "infra"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "S",        # bandit security checks
+    "SIM",      # simplify
+    "N",        # pep8 naming
+    "RUF",      # ruff-specific
+    "PT",       # pytest style
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # assert is how pytest works
+
+# ---------------------------------------------------------------------------
+# mypy: strict type checking
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["services", "scripts", "eval", "tests"]
+warn_unreachable = true
+pretty = true
+
+# ---------------------------------------------------------------------------
+# pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers --cov=services --cov=eval --cov-report=term-missing"
+markers = [
+    "eval: evaluation tests that call real models (run manually or from eval.yml)",
+]
+
+[tool.coverage.run]
+branch = true
+omit = ["tests/*"]
