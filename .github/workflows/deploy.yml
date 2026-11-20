@@ -54,7 +54,7 @@ jobs:
         run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
 
       - name: terraform plan
-        run: terraform plan -input=false -var-file=dev.tfvars -out=tfplan
+        run: terraform plan -input=false -var-file=dev.tfvars -var="image_tag=${{ vars.IMAGE_TAG }}" -out=tfplan
 
       - name: terraform apply
         run: terraform apply -input=false tfplan
