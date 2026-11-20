@@ -28,7 +28,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> BedrockRuntimeClient:
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
     monkeypatch.setenv("CHAT_MODEL_ID", handler.DEFAULT_CHAT_MODEL_ID)
     monkeypatch.setenv("EMBED_MODEL_ID", handler.DEFAULT_EMBED_MODEL_ID)
-    real = boto3.client("bedrock-runtime", region_name="eu-west-2")
+    real = boto3.client("bedrock-runtime", region_name="us-west-2")
     monkeypatch.setattr(handler, "bedrock_client", lambda: real)
     return real
 

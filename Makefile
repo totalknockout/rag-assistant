@@ -2,7 +2,7 @@
 # Works in Codespaces, WSL2, Linux and macOS (not plain Windows PowerShell).
 
 AWS_PROFILE ?= rag-dev
-AWS_REGION  ?= eu-west-2
+AWS_REGION  ?= us-west-2
 DEV_DIR     := infra/envs/dev
 BOOT_DIR    := infra/bootstrap
 

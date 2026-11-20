@@ -12,7 +12,7 @@ variable "project" {
 variable "region" {
   description = "Primary AWS Region."
   type        = string
-  default     = "eu-west-2"
+  default     = "us-west-2"
 }
 
 variable "owner" {

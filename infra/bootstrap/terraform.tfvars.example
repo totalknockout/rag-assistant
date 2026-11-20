@@ -5,7 +5,7 @@ github_repo  = "rag-assistant"
 alert_email  = "you@example.com"
 
 # Optional overrides
-# region                        = "eu-west-2"
+# region                        = "us-west-2"
 # monthly_budget_usd            = 20
 # anomaly_threshold_usd         = 5
 # create_github_oidc_provider   = false  # if the account already has it

@@ -13,7 +13,7 @@ variable "environment" {
 variable "region" {
   description = "AWS Region."
   type        = string
-  default     = "eu-west-2"
+  default     = "us-west-2"
 }
 
 variable "owner" {
@@ -27,7 +27,7 @@ variable "repository" {
 }
 
 variable "chat_model_id" {
-  description = "Bedrock model for the converse smoke test (an open-weight model, in-Region in London)."
+  description = "Bedrock model for the converse smoke test (an open-weight model, in-Region in Oregon)."
   type        = string
   default     = "openai.gpt-oss-20b-1:0"
 }

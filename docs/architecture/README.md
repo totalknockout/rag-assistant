@@ -3,7 +3,7 @@
 ## Reference design (production)
 
 `enterprise-rag-well-architected.drawio` (open in draw.io or app.diagrams.net) and
-its PNG export show the full design: three Availability Zones in eu-west-2,
+its PNG export show the full design: three Availability Zones in us-west-2,
 private subnets with VPC endpoints, OpenSearch Serverless, Bedrock Guardrails and
 Rerank, and a pilot-light DR Region. Each component is annotated against the six
 pillars of the AWS Well-Architected Framework.

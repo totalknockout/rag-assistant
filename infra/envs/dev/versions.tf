@@ -16,7 +16,7 @@ terraform {
   # account ID is committed. Locally: terraform init -backend-config=backend.hcl
   backend "s3" {
     key          = "envs/dev/terraform.tfstate"
-    region       = "eu-west-2"
+    region       = "us-west-2"
     encrypt      = true
     use_lockfile = true
   }

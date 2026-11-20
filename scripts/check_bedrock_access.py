@@ -3,7 +3,7 @@
 Run it from your machine with your Identity Center profile before the first
 deploy, and again whenever you add a model:
 
-    uv run python -m scripts.check_bedrock_access --profile rag-dev --region eu-west-2
+    uv run python -m scripts.check_bedrock_access --profile rag-dev --region us-west-2
 
 It sends one tiny request to each model (fractions of a penny) and prints a table.
 The exit code is non-zero if any model fails, so it also works in CI.
@@ -55,7 +55,7 @@ def check_model(model_id: str) -> Result:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument("--profile", help="AWS CLI profile, e.g. rag-dev")
-    parser.add_argument("--region", default="eu-west-2")
+    parser.add_argument("--region", default="us-west-2")
     parser.add_argument("--model", action="append", dest="models", help="repeatable model ID")
     args = parser.parse_args(argv)
 

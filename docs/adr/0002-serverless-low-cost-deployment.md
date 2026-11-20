@@ -18,7 +18,7 @@ Deploy a variant that keeps the same security model but has no idle cost:
 
 - Lambda functions run **outside a VPC** and call AWS APIs over TLS with IAM authentication.
 - The front end is hosted on **GitHub Pages**; CI/CD runs on **GitHub Actions** with OIDC.
-- The answer model is an **open-weight model on Bedrock** (`openai.gpt-oss-20b-1:0`), in-Region in London.
+- The answer model is an **open-weight model on Bedrock** (`openai.gpt-oss-20b-1:0`), in-Region in Oregon.
 - From Milestone 1, vector and keyword search use **LanceDB on S3** inside Lambda, embeddings and
   reranking run on CPU in Lambda with open-source models, and OCR uses an open-source engine.
 
