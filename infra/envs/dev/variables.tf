@@ -43,3 +43,14 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "image_tag" {
+  description = "Tag of the function image in the ECR repository. Pushed before apply."
+  type        = string
+}
+
+variable "alert_email" {
+  description = "Email for ops alerts. Leave empty for no subscription; the recipient must confirm it."
+  type        = string
+  default     = ""
+}
