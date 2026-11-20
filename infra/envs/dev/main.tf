@@ -50,6 +50,29 @@ module "hello" {
 }
 
 # ---------------------------------------------------------------------------
+# Documents bucket and the Phase 1 ingestion pipeline
+
+module "storage" {
+  source = "../../modules/storage"
+
+  bucket_name   = "${local.name_prefix}-docs-${local.account_id}"
+  force_destroy = true
+}
+
+module "ingestion" {
+  source = "../../modules/ingestion"
+
+  name_prefix              = local.name_prefix
+  bucket_name              = module.storage.bucket_name
+  bucket_arn               = module.storage.bucket_arn
+  image_uri                = "${aws_ecr_repository.functions.repository_url}:${var.image_tag}"
+  iam_path                 = local.workload_path
+  permissions_boundary_arn = local.boundary_arn
+  log_retention_days       = var.log_retention_days
+  alert_email              = var.alert_email
+}
+
+# ---------------------------------------------------------------------------
 # Container registry for the ingest and query images (FastEmbed, LanceDB, OCR)
 
 resource "aws_ecr_repository" "functions" {
@@ -72,11 +95,11 @@ resource "aws_ecr_lifecycle_policy" "functions" {
   policy = jsonencode({
     rules = [{
       rulePriority = 1
-      description  = "Keep the 10 most recent images"
+      description  = "Keep the 30 most recent images"
       selection = {
         tagStatus   = "any"
         countType   = "imageCountMoreThan"
-        countNumber = 10
+        countNumber = 30
       }
       action = { type = "expire" }
     }]
@@ -88,7 +111,7 @@ resource "aws_ecr_lifecycle_policy" "functions" {
 
 resource "aws_resourcegroups_group" "env" {
   name        = local.name_prefix
-  description = "Everything tagged Project=${var.project}, Env=${var.environment}"
+  description = "Everything tagged Project ${var.project} and Env ${var.environment}"
 
   resource_query {
     query = jsonencode({
