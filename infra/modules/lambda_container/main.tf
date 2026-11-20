@@ -80,6 +80,8 @@ resource "aws_lambda_function" "this" {
   #checkov:skip=CKV_AWS_117:Runs outside a VPC by design (ADR 0002); it calls only AWS APIs over TLS with IAM auth.
   #checkov:skip=CKV_AWS_173:Environment variables hold resource names and model IDs only, never secrets.
   #checkov:skip=CKV_AWS_115:Concurrency is set per function through reserved_concurrency where it matters.
+  #checkov:skip=CKV_AWS_116:The function is fed by an SQS queue whose redrive policy dead-letters failed messages; a function DLQ only covers async invocations.
+  #checkov:skip=CKV_AWS_272:Code signing needs a signing profile and pipeline; out of scope for the dev MVP.
   function_name = var.name
   description   = var.description
   role          = aws_iam_role.this.arn

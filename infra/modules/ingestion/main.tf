@@ -78,6 +78,31 @@ resource "aws_cloudwatch_event_target" "queue" {
 # ---------------------------------------------------------------------------
 # Document registry: one row per document, keyed by doc_id
 
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "registry_key" {
+  #checkov:skip=CKV_AWS_109:The key policy must let the account root manage the key; it is the only principal.
+  #checkov:skip=CKV_AWS_111:A KMS key policy must grant kms:* to the account root; the key only applies to this account.
+  #checkov:skip=CKV_AWS_356:A KMS key policy statement must use "*" as its resource; it refers to this key only.
+  statement {
+    sid       = "AccountAdministration"
+    actions   = ["kms:*"]
+    resources = ["*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+}
+
+resource "aws_kms_key" "registry" {
+  description             = "Encrypts the ${var.name_prefix} document registry"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+  policy                  = data.aws_iam_policy_document.registry_key.json
+}
+
 resource "aws_dynamodb_table" "documents" {
   name         = "${var.name_prefix}-documents"
   billing_mode = "PAY_PER_REQUEST"
@@ -90,6 +115,11 @@ resource "aws_dynamodb_table" "documents" {
 
   point_in_time_recovery {
     enabled = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.registry.arn
   }
 }
 
@@ -126,6 +156,13 @@ data "aws_iam_policy_document" "ingest" {
     sid       = "UpdateRegistry"
     actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"]
     resources = [aws_dynamodb_table.documents.arn]
+  }
+
+  # DynamoDB calls KMS on the function's behalf when reading and writing the encrypted table.
+  statement {
+    sid       = "UseRegistryKey"
+    actions   = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey", "kms:DescribeKey", "kms:CreateGrant"]
+    resources = [aws_kms_key.registry.arn]
   }
 }
 
