@@ -14,7 +14,7 @@
       "version": "22"
     }
   },
-  "postCreateCommand": "pipx install uv && make setup",
+  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && pipx install uv && (make setup || echo 'make setup failed (likely pre-commit hook install on the bind mount); run make setup manually')",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -29,6 +29,6 @@
   },
   "remoteEnv": {
     "AWS_PROFILE": "rag-dev",
-    "AWS_REGION": "eu-west-2"
+    "AWS_REGION": "us-west-2"
   }
 }

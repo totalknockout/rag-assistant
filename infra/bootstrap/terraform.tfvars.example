@@ -1,11 +1,13 @@
 # Copy to terraform.tfvars (git-ignored) and fill in.
 owner        = "tk"
 github_owner = "your-github-username"
+github_owner_id = "123456"   # gh api users/your-github-username --jq .id
 github_repo  = "rag-assistant"
+github_repo_id = "654321"    # gh api repos/your-github-username/rag-assistant --jq .id
 alert_email  = "you@example.com"
 
 # Optional overrides
-# region                        = "eu-west-2"
+# region                        = "us-west-2"
 # monthly_budget_usd            = 20
 # anomaly_threshold_usd         = 5
 # create_github_oidc_provider   = false  # if the account already has it

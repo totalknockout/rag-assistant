@@ -53,7 +53,7 @@ Keep this project in its own account so its bill, permissions and clean-up are i
 
 ### 1.2 Sign in through IAM Identity Center, never with access keys
 
-1. Open **IAM Identity Center** in the management account and enable it in `eu-west-2`.
+1. Open **IAM Identity Center** in the management account and enable it in `us-west-2`.
 2. Create a user for yourself and turn on MFA.
 3. Under **Multi-account permissions → AWS accounts**, assign your user to `rag-assistant-dev` with the `AdministratorAccess` permission set. You use this only for the one-off bootstrap and for local experiments; the pipeline gets its own, narrower roles.
 4. Configure the CLI profile used throughout this guide:
@@ -62,15 +62,15 @@ Keep this project in its own account so its bill, permissions and clean-up are i
 aws configure sso --profile rag-dev
 #   SSO session name:      rag
 #   SSO start URL:         https://<your-id>.awsapps.com/start
-#   SSO region:            eu-west-2
+#   SSO region:            us-west-2
 #   Account:               rag-assistant-dev
 #   Role:                  AdministratorAccess
-#   Default client region: eu-west-2
+#   Default client region: us-west-2
 #   Output format:         json
 # In a codespace, add --use-device-code to `aws sso login` if the browser hand-off fails.
 
 aws sso login --profile rag-dev
-export AWS_PROFILE=rag-dev AWS_REGION=eu-west-2
+export AWS_PROFILE=rag-dev AWS_REGION=us-west-2
 aws sts get-caller-identity   # should show the rag-assistant-dev account
 ```
 
@@ -206,7 +206,7 @@ Then open the email from AWS Notifications and **confirm the SNS subscription**.
 
 ```bash
 cp backend.tf.example backend.tf
-sed -i "s/rag-assistant-tfstate-123456789012-eu-west-2/$(terraform output -raw state_bucket)/" backend.tf
+sed -i "s/rag-assistant-tfstate-123456789012-us-west-2/$(terraform output -raw state_bucket)/" backend.tf
 terraform init -migrate-state      # answer "yes"
 rm -f terraform.tfstate terraform.tfstate.backup tfplan
 ```
@@ -232,7 +232,7 @@ git add infra/*/.terraform.lock.hcl infra/envs/dev/.terraform.lock.hcl
 ```hcl
 backend "s3" {
   key          = "envs/dev/terraform.tfstate"
-  region       = "eu-west-2"
+  region       = "us-west-2"
   encrypt      = true
   use_lockfile = true    # S3-native locking; the DynamoDB lock table is deprecated
 }
@@ -274,23 +274,23 @@ for the cost section of the README.
 
 ## Step 5: Confirm Bedrock model access (0.1)
 
-The project uses two models in `eu-west-2`, both available in-Region:
+The project uses two models in `us-west-2`, both available in-Region:
 
 | Purpose | Model ID | Why |
 | --- | --- | --- |
 | Chat (smoke test, later answers) | `openai.gpt-oss-20b-1:0` | Open-weight, low per-token price, no GPU to run |
-| Embeddings (smoke test) | `amazon.titan-embed-text-v2:0` | 1024-dimension vectors, in-Region in London |
+| Embeddings (smoke test) | `amazon.titan-embed-text-v2:0` | 1024-dimension vectors, in-Region in Oregon |
 
 ```bash
 make bedrock-check
-# Account 123456789012 as arn:aws:sts::...:assumed-role/AWSReservedSSO_AdministratorAccess_.../you in eu-west-2
+# Account 123456789012 as arn:aws:sts::...:assumed-role/AWSReservedSSO_AdministratorAccess_.../you in us-west-2
 #
 # PASS  openai.gpt-oss-20b-1:0         reply='pong', 850 ms
 # PASS  amazon.titan-embed-text-v2:0   1024-dimension vector
 ```
 
 If a model fails with `AccessDeniedException`, open the Bedrock console in
-`eu-west-2`, find the model in the catalogue and enable access (some providers
+`us-west-2`, find the model in the catalogue and enable access (some providers
 ask for a one-time use-case form), then run the check again. Swap models by
 passing `--model <id>`, and record any change in an ADR.
 
