@@ -77,6 +77,8 @@ resource "aws_iam_role_policy" "extra" {
 }
 
 resource "aws_lambda_function" "this" {
+  #checkov:skip=CKV_AWS_116:SQS event source retries and redrives failed messages to the queue's DLQ; Lambda DLQ config is for asynchronous invocations.
+  #checkov:skip=CKV_AWS_272:Lambda code signing applies to ZIP packages, not container images; ECR image tags are immutable.
   #checkov:skip=CKV_AWS_117:Runs outside a VPC by design (ADR 0002); it calls only AWS APIs over TLS with IAM auth.
   #checkov:skip=CKV_AWS_173:Environment variables hold resource names and model IDs only, never secrets.
   #checkov:skip=CKV_AWS_115:Concurrency is set per function through reserved_concurrency where it matters.

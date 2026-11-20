@@ -79,6 +79,7 @@ resource "aws_cloudwatch_event_target" "queue" {
 # Document registry: one row per document, keyed by doc_id
 
 resource "aws_dynamodb_table" "documents" {
+  #checkov:skip=CKV_AWS_119:AWS-owned keys encrypt this dev registry at rest; a customer-managed key adds cost and key-policy operations.
   name         = "${var.name_prefix}-documents"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "doc_id"

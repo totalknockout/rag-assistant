@@ -32,6 +32,7 @@ data "aws_iam_policy_document" "tls_only" {
 # Uploaded documents. Every upload is versioned so a re-upload is a new version,
 # and EventBridge receives object events for the ingestion pipeline.
 resource "aws_s3_bucket" "docs" {
+  #checkov:skip=CKV_AWS_18:A separate access-log bucket and its lifecycle policy are deferred for this dev environment.
   #checkov:skip=CKV2_AWS_62:Event notifications go through EventBridge, which is enabled below.
   #checkov:skip=CKV_AWS_144:Cross-Region replication is out of scope for a dev MVP.
   #checkov:skip=CKV_AWS_145:AES256 encryption is sufficient; a KMS key adds cost without a requirement for it.
@@ -96,6 +97,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "docs" {
 
     noncurrent_version_expiration {
       noncurrent_days = 30
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
     }
   }
 
