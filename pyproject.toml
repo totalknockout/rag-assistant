@@ -13,11 +13,13 @@ dev = [
     "aws-lambda-powertools>=3.41.0",
     "boto3>=1.40",
     "boto3-stubs[bedrock,bedrock-runtime,dynamodb,lambda,s3,sns]>=1.40",
+    "fastembed>=0.9.1",
     "moto[dynamodb,s3,sqs]>=5.0",
     "mypy>=1.15",
     "onnxruntime>=1.32.0",
     "pillow>=13.0.0",
     "pre-commit>=4.0",
+    "pyarrow>=26.0.1",
     "pydantic>=2.14.4",
     "pypdf>=7.1.1",
     "pypdfium2>=5.15.2",
@@ -65,6 +67,10 @@ exclude = ["^services/shared/"]
 mypy_path = ["services/shared"]
 warn_unreachable = true
 pretty = true
+
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------
 # pytest

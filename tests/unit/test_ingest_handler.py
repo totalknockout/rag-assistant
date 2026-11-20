@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import io
 import json
 from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
 
 import boto3
+import pyarrow.parquet as pq
 import pytest
 from moto import mock_aws
 
@@ -15,6 +17,10 @@ BUCKET = "rag-assistant-test-docs"
 TABLE = "rag-assistant-test-documents"
 KEY = "raw/hr/leave-policy.txt"
 DOCUMENT = b"Leave Policy\n\n3.2 Sick pay\nStaff are paid for up to ten days of sick leave.\n"
+
+
+def _fake_embed(texts: list[str]) -> list[list[float]]:
+    return [[0.0] * 384 for _ in texts]
 
 
 def _sidecar(**overrides: Any) -> bytes:
@@ -55,6 +61,7 @@ def aws(monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
         )
         s3.put_bucket_versioning(Bucket=BUCKET, VersioningConfiguration={"Status": "Enabled"})
         s3.put_object(Bucket=BUCKET, Key=KEY, Body=DOCUMENT)
+        monkeypatch.setattr(handler, "embed_passages", _fake_embed)
         boto3.client("dynamodb", region_name="us-west-2").create_table(
             TableName=TABLE,
             AttributeDefinitions=[{"AttributeName": "doc_id", "AttributeType": "S"}],
@@ -84,9 +91,9 @@ def _context() -> SimpleNamespace:
 def test_valid_upload_is_extracted_with_section_paths(aws: Any) -> None:
     aws.put_object(Bucket=BUCKET, Key=KEY + handler.SIDECAR_SUFFIX, Body=_sidecar())
 
-    assert handler.handle(*_event()) == "extracted"
+    assert handler.handle(*_event()) == "chunked"
     row = _row()
-    assert row["status"] == "EXTRACTED"
+    assert row["status"] == "CHUNKED"
     assert row["metadata"]["department"] == "hr"
     processed = json.loads(aws.get_object(Bucket=BUCKET, Key=row["processed_key"])["Body"].read())
     sick_pay = [
@@ -95,6 +102,20 @@ def test_valid_upload_is_extracted_with_section_paths(aws: Any) -> None:
         if b["text"] == "Staff are paid for up to ten days of sick leave."
     ]
     assert sick_pay[0]["section"] == "Leave Policy > 3.2 Sick pay"
+
+
+def test_chunks_parquet_carries_permissions_and_model(aws: Any) -> None:
+    aws.put_object(Bucket=BUCKET, Key=KEY + handler.SIDECAR_SUFFIX, Body=_sidecar())
+
+    handler.handle(*_event())
+    row = _row()
+    body = aws.get_object(Bucket=BUCKET, Key=row["chunks_key"])["Body"].read()
+    table = pq.read_table(io.BytesIO(body)).to_pylist()
+    assert row["chunk_count"] == len(table) == 1
+    assert table[0]["allowed_groups"] == ["all-staff"]
+    assert table[0]["department"] == "hr"
+    assert table[0]["embedding_model"] == "BAAI/bge-small-en-v1.5"
+    assert len(table[0]["vector"]) == 384
 
 
 def test_same_version_twice_is_a_duplicate(aws: Any) -> None:
@@ -175,4 +196,4 @@ def test_failed_record_is_reported_back_to_sqs_without_failing_the_batch(aws: An
     result = handler.lambda_handler(event, _context())  # type: ignore[arg-type]
 
     assert result == {"batchItemFailures": [{"itemIdentifier": "bad"}]}
-    assert _row()["status"] == "EXTRACTED"
+    assert _row()["status"] == "CHUNKED"

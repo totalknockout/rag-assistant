@@ -7,18 +7,26 @@ is reported back per message, so one bad file does not retry the whole batch.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 from dataclasses import asdict
 from datetime import UTC, datetime
 from functools import cache
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 import boto3
+import pyarrow as pa
+import pyarrow.parquet as pq
 from aws_lambda_powertools import Logger
 from botocore.exceptions import ClientError
-from rag_shared.models import DocumentMetadata, MetadataError
+from rag_shared.embed import MODEL as EMBEDDING_MODEL
+from rag_shared.embed import embed_passages
+from rag_shared.models import DocumentAttributes, DocumentMetadata, MetadataError
+from rag_shared.schema import CHUNK_SCHEMA
 
+from .chunk import chunk_document
 from .extract import EXTRACTOR_VERSION, Extraction, UnreadableFileError, extract
 
 if TYPE_CHECKING:
@@ -74,7 +82,7 @@ def _previous(doc_id: str) -> dict[str, Any]:
         _table()
         .get_item(
             Key={"doc_id": doc_id},
-            ProjectionExpression="version_id, sha256, processed_key",
+            ProjectionExpression="version_id, sha256, processed_key, chunks_key",
         )
         .get("Item", {})
     )
@@ -94,17 +102,65 @@ def _summary(extraction: Extraction) -> dict[str, int]:
     }
 
 
-def _process(
-    bucket: str, key: str, doc_id: str, version: str, previous: dict[str, Any]
+def _write_chunks(
+    bucket: str,
+    key: str,
+    doc_id: str,
+    version: str,
+    attributes: DocumentAttributes,
+    extraction: Extraction,
 ) -> dict[str, Any]:
-    """Extract a new version, or mark it UNCHANGED when its bytes match the last one."""
+    title = PurePosixPath(key).stem
+    chunks = chunk_document(doc_id, version, title, extraction.blocks)
+    vectors = embed_passages([c.embed_text for c in chunks]) if chunks else []
+    rows = [
+        {
+            "chunk_id": chunk.chunk_id,
+            "doc_id": doc_id,
+            "doc_version": attributes.version,
+            "series_id": doc_id,
+            "title": title,
+            "section": chunk.section,
+            "page": chunk.page,
+            "text": chunk.text,
+            "department": attributes.department,
+            "allowed_groups": attributes.allowed_groups,
+            "classification": attributes.classification.value,
+            "source_key": key,
+            "embedding_model": EMBEDDING_MODEL,
+            "vector": vector,
+        }
+        for chunk, vector in zip(chunks, vectors, strict=True)
+    ]
+    buffer = io.BytesIO()
+    pq.write_table(pa.Table.from_pylist(rows, schema=CHUNK_SCHEMA), buffer)
+    chunks_key = f"processed/{doc_id}/{version}/chunks.parquet"
+    _s3().put_object(
+        Bucket=bucket,
+        Key=chunks_key,
+        Body=buffer.getvalue(),
+        ContentType="application/vnd.apache.parquet",
+    )
+    return {"chunks_key": chunks_key, "chunk_count": len(chunks)}
+
+
+def _process(
+    bucket: str,
+    key: str,
+    doc_id: str,
+    version: str,
+    previous: dict[str, Any],
+    attributes: DocumentAttributes,
+) -> dict[str, Any]:
+    """Extract and chunk a new version, or mark it UNCHANGED when its bytes match the last one."""
     data = _s3().get_object(Bucket=bucket, Key=key)["Body"].read()
     digest = hashlib.sha256(data).hexdigest()
-    if previous.get("sha256") == digest and previous.get("processed_key"):
+    if previous.get("sha256") == digest and previous.get("chunks_key"):
         return {
             "status": "UNCHANGED",
             "sha256": digest,
             "processed_key": previous["processed_key"],
+            "chunks_key": previous["chunks_key"],
         }
     try:
         extraction = extract(key, data)
@@ -126,11 +182,13 @@ def _process(
         ContentType="application/json",
     )
     return {
-        "status": "EXTRACTED",
+        "status": "CHUNKED",
         "sha256": digest,
         "processed_key": processed_key,
         "extractor_version": EXTRACTOR_VERSION,
+        "embedding_model": EMBEDDING_MODEL,
         **_summary(extraction),
+        **_write_chunks(bucket, key, doc_id, version, attributes, extraction),
     }
 
 
@@ -165,7 +223,7 @@ def handle(detail_type: str, detail: dict[str, Any]) -> str:
     else:
         item |= {
             "metadata": metadata.attributes.model_dump(mode="json"),
-            **_process(bucket, key, doc_id, version, previous),
+            **_process(bucket, key, doc_id, version, previous, metadata.attributes),
         }
 
     try:
