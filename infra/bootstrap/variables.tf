@@ -25,8 +25,18 @@ variable "github_owner" {
   type        = string
 }
 
+variable "github_owner_id" {
+  description = "Numeric ID of github_owner (gh api users/OWNER --jq .id). GitHub puts it in OIDC subjects when immutable subjects are on."
+  type        = string
+}
+
 variable "github_repo" {
   description = "Repository name, without the owner."
+  type        = string
+}
+
+variable "github_repo_id" {
+  description = "Numeric ID of the repository (gh api repos/OWNER/REPO --jq .id)."
   type        = string
 }
 

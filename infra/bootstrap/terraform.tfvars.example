@@ -1,7 +1,9 @@
 # Copy to terraform.tfvars (git-ignored) and fill in.
 owner        = "tk"
 github_owner = "your-github-username"
+github_owner_id = "123456"   # gh api users/your-github-username --jq .id
 github_repo  = "rag-assistant"
+github_repo_id = "654321"    # gh api repos/your-github-username/rag-assistant --jq .id
 alert_email  = "you@example.com"
 
 # Optional overrides

@@ -12,8 +12,9 @@ locals {
   account_id = data.aws_caller_identity.current.account_id
   partition  = data.aws_partition.current.partition
 
-  github_repo_full = "${var.github_owner}/${var.github_repo}"
-  oidc_host        = "token.actions.githubusercontent.com"
+  # Repos with immutable OIDC subjects send repo:OWNER@ID/REPO@ID:... instead of repo:OWNER/REPO:...
+  github_subject_prefix = "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}"
+  oidc_host             = "token.actions.githubusercontent.com"
   oidc_provider_arn = (
     var.create_github_oidc_provider
     ? aws_iam_openid_connect_provider.github[0].arn
@@ -71,8 +72,8 @@ data "aws_iam_policy_document" "plan_trust" {
       test     = "StringEquals"
       variable = "${local.oidc_host}:sub"
       values = [
-        "repo:${local.github_repo_full}:pull_request",
-        "repo:${local.github_repo_full}:ref:refs/heads/main",
+        "${local.github_subject_prefix}:pull_request",
+        "${local.github_subject_prefix}:ref:refs/heads/main",
       ]
     }
   }
@@ -113,7 +114,7 @@ data "aws_iam_policy_document" "apply_trust" {
     condition {
       test     = "StringEquals"
       variable = "${local.oidc_host}:sub"
-      values   = ["repo:${local.github_repo_full}:environment:${var.deploy_environment}"]
+      values   = ["${local.github_subject_prefix}:environment:${var.deploy_environment}"]
     }
   }
 }
